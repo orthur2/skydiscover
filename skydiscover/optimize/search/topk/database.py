@@ -49,7 +49,8 @@ class TopKDatabase(ProgramDatabase):
         - Context programs: Next K programs (ranks 2 to K+1)
 
         Args:
-            num_context_programs: Number of context programs for context (defaults to 5)
+            num_context_programs: Number of context programs (defaults to 4).
+                Zero returns no context programs.
             **kwargs: Additional keyword arguments
 
         Returns:
@@ -65,17 +66,21 @@ class TopKDatabase(ProgramDatabase):
         if not top_programs:
             raise ValueError("Cannot sample: no programs available after filtering")
 
-        if len(top_programs) < 2:
-            # Only one program available, use it as both parent and context program
-            parent = top_programs[0]
-            context_programs = [top_programs[0]]
+        parent = top_programs[0]
+
+        if num_context_programs == 0:
+            context_programs: List[Program] = []
+            logger.debug(
+                f"Top K search: parent {parent.id} (rank 1), no context programs requested"
+            )
+        elif len(top_programs) < 2:
+            # Reuse the parent when context is requested but no other program exists.
+            context_programs = [parent]
             logger.debug(
                 "Top K search: only 1 program available, using as both parent and context program"
             )
         else:
-            # Parent is top 1, context_programs is next K
-            parent = top_programs[0]
-            context_programs = top_programs[1 : min(len(top_programs), num_context_programs + 1)]
+            context_programs = top_programs[1 : num_context_programs + 1]
             logger.debug(
                 f"Top K search: parent {parent.id} (rank 1), context programs {len(context_programs)} programs (ranks 2-{len(context_programs)+1})"
             )
